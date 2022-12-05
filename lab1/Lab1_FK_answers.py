@@ -48,7 +48,10 @@ def part1_calculate_T_pose(bvh_file_path):
             joint_parent.append(parentId)
             curData = line.strip()
             curData = curData.split()
-            joint_name.append(curData[-1])
+            if 'End' in line:
+                joint_name.append(joint_name[parentId]+'_end')
+            else:
+                joint_name.append(curData[-1])
             joint_offset.append([0,0,0]) # initialization
             continue
         if '{' in line:
@@ -81,8 +84,31 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
         1. joint_orientations的四元数顺序为(x, y, z, w)
         2. from_euler时注意使用大写的XYZ
     """
-    joint_positions = None
-    joint_orientations = None
+    curMotionData = motion_data[frame_id]
+    boneNum = len(joint_name)
+    joint_positions = np.zeros((boneNum, 3))
+    joint_orientations = np.zeros((boneNum, 4))
+
+    ## 假定bvh只包含一个root
+    rootOffset = curMotionData[:3]
+    for t in range(3):
+        joint_positions[0][t] = joint_offset[0][t] + rootOffset[t]
+    rootRotation = R.from_euler('XYZ', curMotionData[3:6], degrees=True).as_quat()
+    joint_orientations[0] = (rootRotation)
+    dataIdx = 1
+    for bidx in range(1, boneNum):
+        if '_end' in joint_name[bidx]:
+            curRotation = R.from_euler('XYZ', [0,0,0], degrees=True)
+        else:
+            curRotation = R.from_euler('XYZ', curMotionData[3+dataIdx*3:6+dataIdx*3], degrees=True)
+            dataIdx += 1
+        parentBidx = joint_parent[bidx]
+        parentOrientation = joint_orientations[parentBidx]
+        curOrientation = R.from_quat(parentOrientation).as_matrix() @ curRotation.as_matrix()
+        joint_orientations[bidx] = (R.from_matrix(curOrientation).as_quat())
+        # joint_positions[bidx] = curOrientation @ joint_offset[bidx] + joint_positions[parentBidx]
+        joint_positions[bidx] = R.from_quat(parentOrientation).as_matrix() @ joint_offset[bidx] + joint_positions[parentBidx]
+
     return joint_positions, joint_orientations
 
 
