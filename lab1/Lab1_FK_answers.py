@@ -122,5 +122,42 @@ def part3_retarget_func(T_pose_bvh_path, A_pose_bvh_path):
         两个bvh的joint name顺序可能不一致哦(
         as_euler时也需要大写的XYZ
     """
-    motion_data = None
+    t_joint_name, t_joint_parent, t_joint_offset = part1_calculate_T_pose(T_pose_bvh_path)
+    a_joint_name, a_joint_parent, a_joint_offset = part1_calculate_T_pose(A_pose_bvh_path)
+    a_motion_data = load_motion_data(A_pose_bvh_path)
+
+    a_joint_idx = {}
+    idx = 0
+    for item in a_joint_name:
+        if '_end' not in item:
+            a_joint_idx[item] = idx
+            idx += 1
+    t_joint_a_idx = {}
+    for item in t_joint_name:
+        if '_end' not in item:
+            t_joint_a_idx[item] = a_joint_idx[item]
+    
+    motion_data = []
+    for line in a_motion_data:
+        cur_data = []
+        cur_data.append(line[0])
+        cur_data.append(line[1])
+        cur_data.append(line[2])
+        for item in t_joint_name:
+            if '_end' not in item:
+                cur_a_idx = t_joint_a_idx[item]
+                if item == 'lShoulder':
+                    cur_data.append(line[3+cur_a_idx*3+0])
+                    cur_data.append(line[3+cur_a_idx*3+1])
+                    cur_data.append(line[3+cur_a_idx*3+2]-45)
+                elif item == 'rShoulder':
+                    cur_data.append(line[3+cur_a_idx*3+0])
+                    cur_data.append(line[3+cur_a_idx*3+1])
+                    cur_data.append(line[3+cur_a_idx*3+2]+45)
+                else:
+                    cur_data.append(line[3+cur_a_idx*3+0])
+                    cur_data.append(line[3+cur_a_idx*3+1])
+                    cur_data.append(line[3+cur_a_idx*3+2])
+        motion_data.append(cur_data)
+    motion_data = np.asarray(motion_data)
     return motion_data
